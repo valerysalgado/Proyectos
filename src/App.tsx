@@ -1,10 +1,41 @@
 import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from 'react';
-import { Content, GoogleGenAI, Part } from '@google/genai';
+import type { Content, Part } from '@google/genai';
 import ReactMarkdown from 'react-markdown';
 import { ArrowUp, Mic, Paperclip, Square } from 'lucide-react';
 
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GOOGLE_API_KEY });
-const modelId = import.meta.env.VITE_GOOGLE_MODEL_ID || 'gemini-3.6-flash';
+const apiKey = import.meta.env.VITE_GOOGLE_API_KEY;
+const modelId = import.meta.env.VITE_GOOGLE_MODEL_ID || 'gemini-3.8-flash';
+
+type GenerateResponse = {
+  candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+  error?: { message?: string };
+};
+
+async function generateContent(contents: Content[]): Promise<string> {
+  const requestContents = contents.map((content) => ({
+    role: content.role,
+    parts: (content.parts || []).map((part) => ({
+      ...(part.text ? { text: part.text } : {}),
+      ...(part.inlineData ? {
+        inline_data: {
+          mime_type: part.inlineData.mimeType,
+          data: part.inlineData.data,
+        },
+      } : {}),
+    })),
+  }));
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': apiKey,
+    },
+    body: JSON.stringify({ contents: requestContents }),
+  });
+  const data = await response.json() as GenerateResponse;
+  if (!response.ok) throw new Error(data.error?.message || `Gemini respondió con HTTP ${response.status}.`);
+  return data.candidates?.[0]?.content?.parts?.map((part) => part.text || '').join('') || '';
+}
 
 type ChatSession = {
   id: string;
@@ -80,11 +111,7 @@ export default function App() {
 
       const currentContent: Content = { role: 'user', parts: currentParts };
       const nextConversation = [...conversation, currentContent];
-      const response = await ai.models.generateContent({
-        model: modelId,
-        contents: nextConversation,
-      });
-      const responseText = response.text || 'Gemini no devolvió texto.';
+      const responseText = await generateContent(nextConversation) || 'Gemini no devolvió texto.';
       setAnswer(responseText);
       setConversation([...nextConversation, { role: 'model', parts: [{ text: responseText }] }]);
     } catch (requestError) {
@@ -92,6 +119,8 @@ export default function App() {
       setError(
         message.includes('supera el límite')
           ? message
+          : message.includes('ACCESS_TOKEN_TYPE_UNSUPPORTED') || message.includes('invalid authentication credentials')
+          ? 'La credencial configurada es un token OAuth. Usa una API key de Google AI Studio en GOOGLE_API_KEY (normalmente empieza por AIza) y reinicia Vite.'
           : message.includes('API_KEY_INVALID') || message.includes('API key not valid')
           ? 'La API key de Gemini no es válida. Actualiza GEMINI_API_KEY en .env.'
           : `No se pudo conectar con Gemini. ${message || 'Revisa la API key y vuelve a intentarlo.'}`,
@@ -156,17 +185,14 @@ export default function App() {
         reader.onerror = () => reject(new Error('No se pudo leer la grabación.'));
         reader.readAsDataURL(audioBlob);
       });
-      const response = await ai.models.generateContent({
-        model: modelId,
-        contents: [{
-          role: 'user',
-          parts: [
-            { text: 'Transcribe este audio exactamente en español. Devuelve solo la transcripción, sin explicación adicional.' },
-            { inlineData: { mimeType: audioBlob.type || 'audio/webm', data: audioData } },
-          ],
-        }],
-      });
-      setPrompt(response.text || '');
+      const responseText = await generateContent([{
+        role: 'user',
+        parts: [
+          { text: 'Transcribe este audio exactamente en español. Devuelve solo la transcripción, sin explicación adicional.' },
+          { inlineData: { mimeType: audioBlob.type || 'audio/webm', data: audioData } },
+        ],
+      }]);
+      setPrompt(responseText);
     } catch {
       setPrompt('');
       setError('No se pudo transcribir el audio. Inténtalo de nuevo.');

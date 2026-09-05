@@ -8,7 +8,7 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     define: {
       'import.meta.env.VITE_GOOGLE_API_KEY': JSON.stringify(env.GOOGLE_API_KEY || env.GEMINI_API_KEY),
-      'import.meta.env.VITE_GOOGLE_MODEL_ID': JSON.stringify(env.GOOGLE_MODEL_ID || 'gemini-3.6-flash'),
+      'import.meta.env.VITE_GOOGLE_MODEL_ID': JSON.stringify(env.GOOGLE_MODEL_ID || 'gemini-3.8-flash'),
     },
     server: {
       host: '0.0.0.0',
