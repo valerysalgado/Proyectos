@@ -122,7 +122,7 @@ export default function App() {
           : message.includes('ACCESS_TOKEN_TYPE_UNSUPPORTED') || message.includes('invalid authentication credentials')
           ? 'La credencial configurada es un token OAuth. Usa una API key de Google AI Studio en GOOGLE_API_KEY (normalmente empieza por AIza) y reinicia Vite.'
           : message.includes('API_KEY_INVALID') || message.includes('API key not valid')
-          ? 'La API key de Gemini no es válida. Actualiza GEMINI_API_KEY en .env.'
+          ? 'La API key de Gemini no es válida. Actualiza GOOGLE_API_KEY en .env o en las variables de Vercel.'
           : `No se pudo conectar con Gemini. ${message || 'Revisa la API key y vuelve a intentarlo.'}`,
       );
     } finally {
