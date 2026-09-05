@@ -12,6 +12,10 @@ type GenerateResponse = {
 };
 
 async function generateContent(contents: Content[]): Promise<string> {
+  if (!apiKey) {
+    throw new Error('Falta GOOGLE_API_KEY en el archivo .env.');
+  }
+
   const requestContents = contents.map((content) => ({
     role: content.role,
     parts: (content.parts || []).map((part) => ({
@@ -120,9 +124,9 @@ export default function App() {
         message.includes('supera el límite')
           ? message
           : message.includes('ACCESS_TOKEN_TYPE_UNSUPPORTED') || message.includes('invalid authentication credentials')
-          ? 'La credencial configurada es un token OAuth. Usa una API key de Google AI Studio en GOOGLE_API_KEY (normalmente empieza por AIza) y reinicia Vite.'
+          ? 'La credencial configurada es un token OAuth. Usa una API key de Google AI Studio en VITE_GEMINI_API_KEY o GOOGLE_API_KEY y vuelve a desplegar.'
           : message.includes('API_KEY_INVALID') || message.includes('API key not valid')
-          ? 'La API key de Gemini no es válida. Actualiza GOOGLE_API_KEY en .env o en las variables de Vercel.'
+          ? 'La API key de Gemini no es válida. Copia la clave de Google AI Studio en GOOGLE_API_KEY dentro de .env y reinicia Vite.'
           : `No se pudo conectar con Gemini. ${message || 'Revisa la API key y vuelve a intentarlo.'}`,
       );
     } finally {
