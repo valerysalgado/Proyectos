@@ -1,44 +1,23 @@
 import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from 'react';
+import { GoogleGenAI } from '@google/genai';
 import type { Content, Part } from '@google/genai';
 import ReactMarkdown from 'react-markdown';
 import { ArrowUp, Mic, Paperclip, Square } from 'lucide-react';
 
-const apiKey = import.meta.env.VITE_GOOGLE_API_KEY;
-const modelId = import.meta.env.VITE_GOOGLE_MODEL_ID || 'gemini-3.8-flash';
-
-type GenerateResponse = {
-  candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-  error?: { message?: string };
-};
+const apiKey = import.meta.env.VITE_GOOGLE_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
+const modelId = import.meta.env.VITE_GOOGLE_MODEL_ID || 'gemini-2.5-flash';
+const ai = new GoogleGenAI({ apiKey });
 
 async function generateContent(contents: Content[]): Promise<string> {
   if (!apiKey) {
-    throw new Error('Falta GOOGLE_API_KEY en el archivo .env.');
+    throw new Error('Falta la API key. Configura VITE_GEMINI_API_KEY o GOOGLE_API_KEY y reinicia o vuelve a desplegar.');
   }
 
-  const requestContents = contents.map((content) => ({
-    role: content.role,
-    parts: (content.parts || []).map((part) => ({
-      ...(part.text ? { text: part.text } : {}),
-      ...(part.inlineData ? {
-        inline_data: {
-          mime_type: part.inlineData.mimeType,
-          data: part.inlineData.data,
-        },
-      } : {}),
-    })),
-  }));
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-goog-api-key': apiKey,
-    },
-    body: JSON.stringify({ contents: requestContents }),
+  const response = await ai.models.generateContent({
+    model: modelId,
+    contents,
   });
-  const data = await response.json() as GenerateResponse;
-  if (!response.ok) throw new Error(data.error?.message || `Gemini respondió con HTTP ${response.status}.`);
-  return data.candidates?.[0]?.content?.parts?.map((part) => part.text || '').join('') || '';
+  return response.text || '';
 }
 
 type ChatSession = {
@@ -126,7 +105,7 @@ export default function App() {
           : message.includes('ACCESS_TOKEN_TYPE_UNSUPPORTED') || message.includes('invalid authentication credentials')
           ? 'La credencial configurada es un token OAuth. Usa una API key de Google AI Studio en VITE_GEMINI_API_KEY o GOOGLE_API_KEY y vuelve a desplegar.'
           : message.includes('API_KEY_INVALID') || message.includes('API key not valid')
-          ? 'La API key de Gemini no es válida. Copia la clave de Google AI Studio en GOOGLE_API_KEY dentro de .env y reinicia Vite.'
+          ? 'La API key de Gemini no es válida. Copia la clave de Google AI Studio en VITE_GEMINI_API_KEY dentro de .env y reinicia o vuelve a desplegar.'
           : `No se pudo conectar con Gemini. ${message || 'Revisa la API key y vuelve a intentarlo.'}`,
       );
     } finally {
