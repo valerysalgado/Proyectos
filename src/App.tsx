@@ -4,9 +4,20 @@ import type { Content, Part } from '@google/genai';
 import ReactMarkdown from 'react-markdown';
 import { ArrowUp, Mic, Paperclip, Square } from 'lucide-react';
 
-const apiKey = import.meta.env.VITE_GOOGLE_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
+const googleApiKey = import.meta.env.VITE_GOOGLE_API_KEY;
+const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY;
+const apiKey = googleApiKey || geminiApiKey;
 const modelId = import.meta.env.VITE_GOOGLE_MODEL_ID || 'gemini-2.5-flash';
 const ai = new GoogleGenAI({ apiKey });
+
+console.warn('[Gemini config]', {
+  googleKeyAvailable: Boolean(googleApiKey),
+  googleKeyLength: googleApiKey?.length || 0,
+  geminiKeyAvailable: Boolean(geminiApiKey),
+  geminiKeyLength: geminiApiKey?.length || 0,
+  selectedKey: googleApiKey ? 'VITE_GOOGLE_API_KEY' : geminiApiKey ? 'VITE_GEMINI_API_KEY' : 'none',
+  modelId,
+});
 
 async function generateContent(contents: Content[]): Promise<string> {
   if (!apiKey) {
